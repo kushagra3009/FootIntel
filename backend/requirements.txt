@@ -1,15 +1,17 @@
 # Data processing
-pandas>=2.2.0
-numpy>=1.26.0
-duckdb>=1.1.0
+pandas==3.1.1
+numpy==2.5.4
+duckdb==2.0.0
 
-# Statistical analysis
-scipy>=1.14.0
+# Statistical analysis & charting
+scipy==1.18.1
+matplotlib==3.11.2
 
 # API layer
-fastapi>=0.115.0
-uvicorn[standard]>=0.32.0
+fastapi==0.162.5
+uvicorn[standard]==0.54.0
+pydantic==2.14.3
 
-# Utilities
-requests>=2.32.0
-httpx>=0.27.0
+# Utilities & test client
+requests==2.34.2
+httpx==0.28.1

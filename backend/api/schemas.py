@@ -306,3 +306,229 @@ class StatisticalResultsResponse(BaseModel):
     statistical_results: dict[str, Any]
     domestic_vs_ucl_comparison: dict[str, Any] | None = None
 
+
+# ---------------------------------------------------------------------------
+# Phase 4.1 — Player Intelligence, Comparison & Transfer Value Tools
+# ---------------------------------------------------------------------------
+
+
+class PlayerSearchItem(BaseModel):
+    player_id: int
+    name: str
+    country_of_citizenship: str | None = None
+    date_of_birth: str | None = None
+    age: int | None = None
+    position: str | None = None
+    sub_position: str | None = None
+    current_club_id: int | None = None
+    current_club_name: str | None = None
+    current_club_domestic_competition_id: str | None = None
+    market_value_in_eur: int | None = None
+    highest_market_value_in_eur: int | None = None
+    last_season: int | None = None
+    appearance_count: int = 0
+    total_goals: int = 0
+    total_assists: int = 0
+    image_url: str | None = None
+
+
+class PlayerSearchResponse(BaseModel):
+    players: list[PlayerSearchItem]
+    available_positions: list[str]
+    pagination: PaginationMeta
+
+
+class PlayerProfile(BaseModel):
+    player_id: int
+    name: str
+    first_name: str | None = None
+    last_name: str | None = None
+    country_of_citizenship: str | None = None
+    country_of_birth: str | None = None
+    city_of_birth: str | None = None
+    date_of_birth: str | None = None
+    age: int | None = None
+    position: str | None = None
+    sub_position: str | None = None
+    foot: str | None = None
+    height_in_cm: int | None = None
+    contract_expiration_date: str | None = None
+    current_club_id: int | None = None
+    current_club_name: str | None = None
+    current_club_domestic_competition_id: str | None = None
+    market_value_in_eur: int | None = None
+    highest_market_value_in_eur: int | None = None
+    latest_valuation_in_eur: int | None = None
+    latest_valuation_date: str | None = None
+    last_season: int | None = None
+    image_url: str | None = None
+    url: str | None = None
+
+
+class PlayerCareerSummary(BaseModel):
+    has_appearance_data: bool
+    has_valuation_data: bool
+    has_transfer_data: bool
+    appearances: int = 0
+    goals: int = 0
+    assists: int = 0
+    minutes_played: int = 0
+    yellow_cards: int = 0
+    red_cards: int = 0
+    goals_per_appearance: float | None = None
+    assists_per_appearance: float | None = None
+    seasons_with_appearances: int = 0
+    first_appearance_season: int | None = None
+    last_appearance_season: int | None = None
+    unavailable_metrics_note: str
+
+
+class PlayerSeasonStatsRow(BaseModel):
+    season: int
+    season_label: str
+    appearances: int
+    goals: int
+    assists: int
+    minutes_played: int
+    yellow_cards: int
+    red_cards: int
+    goals_per_appearance: float | None = None
+    assists_per_appearance: float | None = None
+    clubs: list[str]
+    competitions: list[str]
+
+
+class PlayerValuationPoint(BaseModel):
+    date: str
+    market_value_in_eur: int
+    current_club_id: int | None = None
+    current_club_name: str | None = None
+    competition_id: str | None = None
+
+
+class PlayerTransferRow(BaseModel):
+    transfer_date: str | None = None
+    transfer_season: str | None = None
+    game_season: int | None = None
+    from_club_id: int | None = None
+    from_club_name: str | None = None
+    to_club_id: int | None = None
+    to_club_name: str | None = None
+    transfer_fee: float | None = None
+    fee_status: str = Field(
+        description="'paid' (>0 EUR), 'free_or_loan' (=0 EUR), or 'undisclosed' (NULL in source)."
+    )
+    market_value_in_eur: float | None = None
+    is_future_scheduled: bool = False
+
+
+class PlayerClubSpellRow(BaseModel):
+    club_id: int | None = None
+    club_name: str
+    competition_id: str | None = None
+    first_season: int | None = None
+    last_season: int | None = None
+    season_span: str
+    appearances: int = 0
+    goals: int = 0
+    assists: int = 0
+    minutes_played: int = 0
+    source: str = Field(
+        description="Whether club spell was observed in 'appearances', 'transfers', or 'both'."
+    )
+
+
+class PlayerDetailResponse(BaseModel):
+    profile: PlayerProfile
+    career_summary: PlayerCareerSummary
+    season_stats: list[PlayerSeasonStatsRow]
+    market_value_history: list[PlayerValuationPoint]
+    transfer_history: list[PlayerTransferRow]
+    club_timeline: list[PlayerClubSpellRow]
+    valuation_disclaimer: str
+
+
+class PlayerComparisonMetrics(BaseModel):
+    scope_type: str = Field(description="'season' when filtered to a specific games.season, otherwise 'career'.")
+    selected_season: int | None = None
+    selected_season_label: str
+    has_appearance_data: bool
+    appearances: int = 0
+    goals: int = 0
+    assists: int = 0
+    minutes_played: int = 0
+    yellow_cards: int = 0
+    red_cards: int = 0
+    goals_per_appearance: float | None = None
+    assists_per_appearance: float | None = None
+    clubs_in_scope: list[str]
+    competitions_in_scope: list[str]
+    market_value_in_eur: int | None = None
+    market_value_date: str | None = None
+    market_value_boundary_note: str
+    season_transfer_fee_eur: float | None = None
+    season_transfer_fee_status: str
+    season_transfer_description: str | None = None
+    latest_paid_transfer_fee_eur: float | None = None
+    latest_paid_transfer_season: str | None = None
+
+
+class PlayerComparisonSide(BaseModel):
+    profile: PlayerProfile
+    available_seasons: list[int]
+    metrics: PlayerComparisonMetrics
+
+
+class PlayerComparisonRadarAxis(BaseModel):
+    metric: str
+    unit: str
+    player_a_raw: float
+    player_b_raw: float
+    player_a_score: float
+    player_b_score: float
+
+
+class PlayerComparisonResponse(BaseModel):
+    comparison_mode: str = Field(
+        description="'same_season', 'different_seasons', 'same_player_cross_season', or 'career'."
+    )
+    season_boundary_definition: str
+    player_a: PlayerComparisonSide
+    player_b: PlayerComparisonSide
+    radar_supported: bool
+    radar_unavailable_reason: str | None = None
+    radar_axes: list[PlayerComparisonRadarAxis]
+    unavailable_metrics_note: str
+    valuation_disclaimer: str
+
+
+class TransferSpellCalculatorRow(BaseModel):
+    spell_index: int
+    transfer_date: str | None = None
+    next_transfer_date: str | None = None
+    transfer_season: str | None = None
+    game_season: int | None = None
+    from_club_name: str | None = None
+    to_club_id: int | None = None
+    to_club_name: str | None = None
+    to_league_id: str | None = None
+    transfer_fee: float | None = None
+    fee_status: str
+    mv_at_arrival: float | None = None
+    mv_at_arrival_source: str | None = None
+    peak_mv: float | None = None
+    latest_mv_at_club: float | None = None
+    valuation_count: int = 0
+    last_valuation_date: str | None = None
+    est_peak_mv_gain: float | None = None
+    est_peak_mv_gain_pct: float | None = None
+    peak_mv_to_fee_multiple: float | None = None
+    est_latest_mv_gain: float | None = None
+    latest_mv_to_fee_multiple: float | None = None
+
+
+class PlayerTransferSpellsResponse(BaseModel):
+    profile: PlayerProfile
+    spells: list[TransferSpellCalculatorRow]
+    methodology_note: str
+    valuation_disclaimer: str

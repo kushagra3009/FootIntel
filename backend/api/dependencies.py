@@ -26,17 +26,16 @@ def get_db_connection() -> Generator[duckdb.DuckDBPyConnection, None, None]:
         raise ServiceUnavailableError(
             f"DuckDB database not found at configured path: {db_path.name}"
         )
-    con: duckdb.DuckDBPyConnection | None = None
     try:
         con = duckdb.connect(str(db_path), read_only=True)
-        yield con
     except HTTPException:
         raise
     except Exception as exc:
         raise ServiceUnavailableError(f"Database connection error: {exc}") from exc
+    try:
+        yield con
     finally:
-        if con is not None:
-            con.close()
+        con.close()
 
 
 def resolve_output_file(filename: str):

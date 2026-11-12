@@ -1,4 +1,4 @@
-# Python
+# Python & dev caches
 __pycache__/
 *.py[cod]
 *.pyo
@@ -10,19 +10,28 @@ venv/
 .venv/
 env/
 *.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# DuckDB
+# DuckDB & SQLite
 *.duckdb
 *.duckdb.wal
+*.db
+*.sqlite
 
-# Data (raw files are large, keep processed DB only if needed)
+# Data (raw files & DuckDB are large; generated Phase 2 outputs regenerate via python -m analysis.run_all)
 data/raw/
 data/processed/*.duckdb
+data/processed/analysis_outputs/
+data/processed/charts/
 
 # Node / Frontend
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/coverage/
+*.tsbuildinfo
 
 # IDE
 .vscode/
@@ -35,7 +44,9 @@ frontend/.vite/
 Thumbs.db
 desktop.ini
 
-# Env
+# Env (ignore all variants while allowing tracked templates)
 .env
-.env.local
+.env.*
+!.env.example
+!frontend/.env.example
 *.log
