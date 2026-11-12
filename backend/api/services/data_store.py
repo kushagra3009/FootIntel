@@ -4,14 +4,34 @@ Uses parameterized DuckDB SQL queries on CSV artifacts so large datasets are fil
 sorted, and paginated without loading entire tables into Python memory.
 """
 
+from contextlib import contextmanager
 from datetime import date, datetime
 import json
 import math
 from pathlib import Path
-from typing import Any
+import threading
+from typing import Any, Iterator
 import duckdb
 
+from api.config import get_csv_max_concurrency, get_in_memory_duckdb_config
 from api.dependencies import ServiceUnavailableError, resolve_output_file
+
+_CSV_CONCURRENCY_TIMEOUT_SECONDS = 30.0
+_CSV_SEMAPHORE = threading.BoundedSemaphore(get_csv_max_concurrency())
+
+
+@contextmanager
+def _in_memory_duckdb() -> Iterator[duckdb.DuckDBPyConnection]:
+    """Yield a concurrency- and memory-bounded transient in-memory DuckDB session."""
+    if not _CSV_SEMAPHORE.acquire(timeout=_CSV_CONCURRENCY_TIMEOUT_SECONDS):
+        raise ServiceUnavailableError(
+            "CSV query concurrency limit reached; please retry shortly."
+        )
+    try:
+        with duckdb.connect(":memory:", config=get_in_memory_duckdb_config()) as mem:
+            yield mem
+    finally:
+        _CSV_SEMAPHORE.release()
 
 
 def sanitize_value(val: Any) -> Any:
@@ -69,7 +89,7 @@ def query_csv_rows(
     where_sql, params = build_where_clause(filters or [])
     src = f"read_csv_auto('{path.as_posix()}', header=true)"
 
-    with duckdb.connect(":memory:") as mem:
+    with _in_memory_duckdb() as mem:
         total = int(
             mem.execute(f"SELECT COUNT(*) FROM {src} {where_sql}", params).fetchone()[0]
         )
@@ -92,7 +112,7 @@ def query_csv_agg(filename: str, select_sql: str, filters: list[tuple[str, Any]]
     group_sql = f"GROUP BY {group_by}" if group_by else ""
     order_sql = f"ORDER BY {order_by}" if order_by else ""
 
-    with duckdb.connect(":memory:") as mem:
+    with _in_memory_duckdb() as mem:
         cur = mem.execute(
             f"SELECT {select_sql} FROM {src} {where_sql} {group_sql} {order_sql}",
             params,

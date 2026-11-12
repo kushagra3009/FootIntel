@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: footintel-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements-api.txt
+    startCommand: python -m api.hydrate && exec uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
+    healthCheckPath: /health
+    envVars:
+      - key: FOOTINTEL_ENV
+        value: production
+      - key: FOOTINTEL_DUCKDB_MEMORY_LIMIT
+        value: 192MB
+      - key: FOOTINTEL_DUCKDB_CSV_MEMORY_LIMIT
+        value: 64MB
+      - key: FOOTINTEL_DUCKDB_THREADS
+        value: "1"
+      - key: FOOTINTEL_DB_MAX_CONCURRENCY
+        value: "4"
+      - key: FOOTINTEL_CSV_MAX_CONCURRENCY
+        value: "2"
+      - key: FOOTINTEL_CORS_ORIGINS
+        sync: false
+      - key: FOOTINTEL_DB_ASSET_URL
+        sync: false
+      - key: FOOTINTEL_DB_SHA256
+        sync: false
+      - key: FOOTINTEL_OUTPUTS_ASSET_URL
+        sync: false
+      - key: FOOTINTEL_OUTPUTS_SHA256
+        sync: false
+

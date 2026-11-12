@@ -6,7 +6,7 @@ Combines live DuckDB metadata queries with validated Phase 2 statistical outputs
 from typing import Any
 import duckdb
 
-from api.config import TOP5_LEAGUES, get_db_path, get_output_dir
+from api.config import CORE_TABLES, TOP5_LEAGUES, get_db_path, get_output_dir
 from api.dependencies import ServiceUnavailableError
 from api.schemas import (
     ClubValuationSummaryRow,
@@ -34,16 +34,6 @@ from api.schemas import (
     UCLStageCount,
 )
 from api.services.data_store import load_json_output, query_csv_agg, query_csv_rows
-
-CORE_TABLES = [
-    "appearances",
-    "clubs",
-    "competitions",
-    "games",
-    "player_valuations",
-    "players",
-    "transfers",
-]
 
 COVERAGE_WARNING = {
     "severity": "warning",

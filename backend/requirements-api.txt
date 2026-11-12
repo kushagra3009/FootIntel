@@ -1,0 +1,5 @@
+duckdb==2.0.0
+fastapi==0.162.5
+pydantic==2.14.3
+uvicorn[standard]==0.54.0
+
