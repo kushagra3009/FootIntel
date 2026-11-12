@@ -164,13 +164,38 @@ def run_analysis_1_historical_trends(con) -> pd.DataFrame:
         np.nan,
     )
 
+    # Quantify active Top-5 player coverage in `transfers` per season (survivorship / scrape-recency audit)
+    cov = con.execute("""
+        WITH top5_active AS (
+            SELECT DISTINCT g.season AS game_season, a.player_id
+            FROM appearances a
+            JOIN games g ON a.game_id = g.game_id
+            WHERE g.competition_id IN ('GB1','ES1','IT1','L1','FR1')
+              AND g.season BETWEEN 2012 AND 2025
+        ),
+        t_players AS (
+            SELECT DISTINCT player_id FROM transfers
+        )
+        SELECT
+            ta.game_season,
+            COUNT(*) AS active_top5_players,
+            SUM(CASE WHEN tp.player_id IS NOT NULL THEN 1 ELSE 0 END) AS covered_top5_players,
+            ROUND(100.0 * SUM(CASE WHEN tp.player_id IS NOT NULL THEN 1 ELSE 0 END) / COUNT(*), 1) AS pct_active_players_covered
+        FROM top5_active ta
+        LEFT JOIN t_players tp ON ta.player_id = tp.player_id
+        GROUP BY ta.game_season
+        ORDER BY ta.game_season
+    """).df()
+    agg = agg.merge(cov, on="game_season", how="left")
+
     print(f"\nSeasons covered: {df['game_season'].min()}-{df['game_season'].max()}")
     print(f"Rows (league-season): {len(df)}")
-    print("\nAggregate Top 5 season-aligned spending:")
+    print("\nAggregate Top 5 season-aligned spending (with active-player coverage):")
     for _, r in agg.iterrows():
         print(f"  {r['transfer_season']}: €{r['total_spending']/1e9:.2f}B "
               f"({r['paid_transfers']:.0f} paid transfers, "
-              f"weighted avg €{r['weighted_avg_fee_m']:.1f}M)")
+              f"avg €{r['weighted_avg_fee_m']:.1f}M, "
+              f"active-player coverage {r['pct_active_players_covered']:.1f}%)")
 
     df.to_csv(OUTPUT_DIR / "01_historical_trends_by_league.csv", index=False)
     agg.to_csv(OUTPUT_DIR / "01_historical_trends_aggregate.csv", index=False)
@@ -624,11 +649,11 @@ def run_analysis_5_club_value_gain(con) -> pd.DataFrame:
         GROUP BY 1,2,3,4,5,6,7,8,9,10,11
     """).df()
 
-    merged["value_gain"] = merged["peak_mv"] - merged["transfer_fee"]
-    merged["value_gain_pct"] = (merged["peak_mv"] - merged["transfer_fee"]) / merged["transfer_fee"] * 100
-    merged["roi"] = merged["peak_mv"] / merged["transfer_fee"]
-    merged["last_value_gain"] = merged["last_mv_at_club"] - merged["transfer_fee"]
-    merged["last_roi"] = merged["last_mv_at_club"] / merged["transfer_fee"]
+    merged["est_peak_mv_gain"] = merged["peak_mv"] - merged["transfer_fee"]
+    merged["est_peak_mv_gain_pct"] = (merged["peak_mv"] - merged["transfer_fee"]) / merged["transfer_fee"] * 100
+    merged["peak_mv_to_fee_multiple"] = merged["peak_mv"] / merged["transfer_fee"]
+    merged["est_latest_mv_gain"] = merged["last_mv_at_club"] - merged["transfer_fee"]
+    merged["latest_mv_to_fee_multiple"] = merged["last_mv_at_club"] / merged["transfer_fee"]
 
     print(f"\nTransfers with spell-bounded post-arrival valuations: {len(merged)}")
     print(f"  Unique clubs: {merged['club_id'].nunique()}")
@@ -636,25 +661,25 @@ def run_analysis_5_club_value_gain(con) -> pd.DataFrame:
     club_agg = merged.groupby(["club_id", "club_name", "league_id"]).agg(
         total_spent=("transfer_fee", "sum"),
         total_mv_at_arrival=("mv_at_arrival", "sum"),
-        total_peak_value=("peak_mv", "sum"),
-        total_last_value=("last_mv_at_club", "sum"),
+        total_peak_mv=("peak_mv", "sum"),
+        total_latest_mv=("last_mv_at_club", "sum"),
         num_signings=("player_id", "count"),
-        avg_roi=("roi", "mean"),
-        median_roi=("roi", "median"),
-        total_value_gain=("value_gain", "sum"),
-        total_last_value_gain=("last_value_gain", "sum"),
+        avg_peak_mv_multiple=("peak_mv_to_fee_multiple", "mean"),
+        median_peak_mv_multiple=("peak_mv_to_fee_multiple", "median"),
+        total_est_peak_mv_gain=("est_peak_mv_gain", "sum"),
+        total_est_latest_mv_gain=("est_latest_mv_gain", "sum"),
     ).reset_index()
 
-    club_agg["portfolio_roi"] = club_agg["total_peak_value"] / club_agg["total_spent"]
-    club_agg["portfolio_last_roi"] = club_agg["total_last_value"] / club_agg["total_spent"]
+    club_agg["portfolio_peak_mv_multiple"] = club_agg["total_peak_mv"] / club_agg["total_spent"]
+    club_agg["portfolio_latest_mv_multiple"] = club_agg["total_latest_mv"] / club_agg["total_spent"]
     club_agg["league_name"] = club_agg["league_id"].map(TOP5_LEAGUES)
-    club_agg = club_agg.sort_values("total_value_gain", ascending=False)
+    club_agg = club_agg.sort_values("total_est_peak_mv_gain", ascending=False)
 
-    print("\n  Top 10 clubs by spell-bounded peak value gain:")
+    print("\n  Top 10 clubs by spell-bounded estimated peak market value gain:")
     for _, r in club_agg.head(10).iterrows():
         print(f"    {r['club_name']:22s} spent €{r['total_spent']/1e6:6.0f}M  "
-              f"peak €{r['total_peak_value']/1e6:6.0f}M (ROI {r['portfolio_roi']:.2f}x)  "
-              f"latest ROI {r['portfolio_last_roi']:.2f}x  ({r['num_signings']} signings)")
+              f"peak MV €{r['total_peak_mv']/1e6:6.0f}M ({r['portfolio_peak_mv_multiple']:.2f}x)  "
+              f"latest MV {r['portfolio_latest_mv_multiple']:.2f}x  ({r['num_signings']} signings)")
 
     merged.to_csv(OUTPUT_DIR / "05_player_value_gain.csv", index=False)
     club_agg.to_csv(OUTPUT_DIR / "05_club_value_gain_summary.csv", index=False)
@@ -1064,10 +1089,11 @@ def generate_charts(domestic_df, ucl_df, fee_mv_df, trends_df, stat_results):
         ax.plot(sub["game_season"], sub["total_spending"] / 1e9,
                 marker="o", label=lname, color=league_colors.get(lname, "gray"),
                 linewidth=2, markersize=5)
-    ax.axvspan(2012, 2017.5, color="gray", alpha=0.08, label="Lower player-cohort coverage (retired pre-2023)")
+    ax.axvspan(2012, 2021.5, color="gray", alpha=0.10,
+               label="Incomplete cohort (<85% active Top-5 players in transfers; 17% in 2012 → 83% in 2021)")
     ax.set_xlabel("Season (start year)")
-    ax.set_ylabel("Total Transfer Spending (€ Billion)")
-    ax.set_title("Season-Aligned Transfer Spending by League (2012–2025)")
+    ax.set_ylabel("Tracked Cohort Transfer Spending (€ Billion)")
+    ax.set_title("Season-Aligned Tracked Transfer Spending by League (2012–2025; Near-Complete Coverage 2022–2025)")
     ax.legend(loc="upper left", framealpha=0.9)
     ax.grid(True, alpha=0.3)
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"€{x:.1f}B"))
@@ -1084,14 +1110,14 @@ def generate_charts(domestic_df, ucl_df, fee_mv_df, trends_df, stat_results):
         sub = dom[dom["league_id"] == lid]
         ax.scatter(sub["gross_spend_m"], sub["league_position"],
                    alpha=0.35, s=20, color=league_colors.get(lname, "gray"))
-        ax.set_title(lname, fontsize=11)
+        ax.set_title(f"{lname} (n={len(sub)})", fontsize=11)
         ax.set_xlabel("Gross Spend (€M)")
         ax.invert_yaxis()
         ax.set_xlim(left=0)
         ax.grid(True, alpha=0.3)
         if i == 0:
             ax.set_ylabel("League Position (1 = champion)")
-    fig.suptitle("Transfer Spending vs League Position (Top 5 Leagues, 2012–2025)", fontsize=14, y=1.02)
+    fig.suptitle(f"Transfer Spending vs League Position (Top 5 Leagues, 2012–2025, n={len(dom):,})", fontsize=14, y=1.02)
     plt.tight_layout()
     fig.savefig(CHARTS_DIR / "02_spending_vs_position.png")
     plt.close()
@@ -1108,12 +1134,12 @@ def generate_charts(domestic_df, ucl_df, fee_mv_df, trends_df, stat_results):
     x_range = np.linspace(dom["log_gross_spend_m"].min(), dom["log_gross_spend_m"].max(), 200)
     ax.plot(np.exp(x_range), ols_ppg["slope"] * x_range + ols_ppg["intercept"],
             color="red", linewidth=2.2, linestyle="--",
-            label=f"Log OLS (R²={ols_ppg['r_squared']:.3f}, r={stat_results['6A_domestic_spend_vs_performance']['pearson_r_log_vs_ppg']:.3f})")
+            label=f"Pooled Log OLS (R²={ols_ppg['r_squared']:.3f}, r={stat_results['6A_domestic_spend_vs_performance']['pearson_r_log_vs_ppg']:.3f})")
     ax.set_xscale("log")
     ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"€{x:g}M"))
     ax.set_xlabel("Gross Transfer Spending (€M, log scale)")
     ax.set_ylabel("Points Per Game (PPG)")
-    ax.set_title("Transfer Spending vs Points Per Game (Top 5 Leagues, 2012–2025)")
+    ax.set_title(f"Transfer Spending vs Points Per Game (Top 5 Leagues, 2012–2025, n={len(dom):,})")
     ax.legend(loc="lower right", framealpha=0.9)
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
@@ -1158,26 +1184,34 @@ def generate_charts(domestic_df, ucl_df, fee_mv_df, trends_df, stat_results):
     fig.savefig(CHARTS_DIR / "04_ucl_stage_vs_spending.png")
     plt.close()
 
-    # ─── Chart 5: Fee vs Market Value ───
+    # ─── Chart 5: Fee vs Market Value (log-log scale matching R²=0.658) ───
     print("  Generating Chart 5: Transfer Fee vs Market Value...")
     fig, ax = plt.subplots(figsize=(10, 8))
     plot_df = fee_mv_df.sample(min(5000, len(fee_mv_df)), random_state=42)
     top5_mask = plot_df["is_top5"]
     ax.scatter(plot_df.loc[~top5_mask, "mv_at_transfer"] / 1e6,
                plot_df.loc[~top5_mask, "transfer_fee"] / 1e6,
-               alpha=0.2, s=15, color="gray", label="Other leagues")
+               alpha=0.18, s=14, color="gray", label="Other leagues")
     ax.scatter(plot_df.loc[top5_mask, "mv_at_transfer"] / 1e6,
                plot_df.loc[top5_mask, "transfer_fee"] / 1e6,
-               alpha=0.3, s=15, color="#2196F3", label="Top 5 leagues")
-    max_val = max(plot_df["transfer_fee"].max(), plot_df["mv_at_transfer"].max()) / 1e6
-    ax.plot([0, max_val], [0, max_val], "r--", linewidth=1.5, label="Fee = Market Value (1:1)", alpha=0.7)
-    ax.set_xlabel("Market Value at Transfer (€M)")
-    ax.set_ylabel("Transfer Fee Paid (€M)")
-    ax.set_title(f"Transfer Fee vs Estimated Market Value (n={len(fee_mv_df):,}, R²={stat_results['6E_fee_vs_mv']['ols_log_mv_to_log_fee']['r_squared']:.3f})")
+               alpha=0.28, s=14, color="#2196F3", label="Top 5 leagues")
+    min_val = max(0.01, min(fee_mv_df["transfer_fee"].min(), fee_mv_df["mv_at_transfer"].min()) / 1e6)
+    max_val = max(fee_mv_df["transfer_fee"].max(), fee_mv_df["mv_at_transfer"].max()) / 1e6
+    ax.plot([min_val, max_val], [min_val, max_val], "k--", linewidth=1.3, label="Fee = Market Value (1:1)", alpha=0.7)
+    ols_fm = stat_results["6E_fee_vs_mv"]["ols_log_mv_to_log_fee"]
+    mv_grid = np.linspace(fee_mv_df["log_mv"].min(), fee_mv_df["log_mv"].max(), 100)
+    fee_pred = np.exp(ols_fm["slope"] * mv_grid + ols_fm["intercept"])
+    ax.plot(np.exp(mv_grid) / 1e6, fee_pred / 1e6, "r-", linewidth=2.0,
+            label=f"Log-Log OLS (slope={ols_fm['slope']:.3f}, R²={ols_fm['r_squared']:.3f})")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"€{x:g}M"))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"€{x:g}M"))
+    ax.set_xlabel("Market Value at Transfer (€M, log scale)")
+    ax.set_ylabel("Transfer Fee Paid (€M, log scale)")
+    ax.set_title(f"Transfer Fee vs Estimated Market Value (n={len(fee_mv_df):,}; 5,000 shown, log-log R²={ols_fm['r_squared']:.3f})")
     ax.legend(loc="upper left")
     ax.grid(True, alpha=0.3)
-    ax.set_xlim(left=0)
-    ax.set_ylim(bottom=0)
     plt.tight_layout()
     fig.savefig(CHARTS_DIR / "05_fee_vs_market_value.png")
     plt.close()
@@ -1234,7 +1268,7 @@ def generate_charts(domestic_df, ucl_df, fee_mv_df, trends_df, stat_results):
         ax.text(bar.get_width() + 0.01, bar.get_y() + bar.get_height() / 2,
                 f"r={row['r']:.3f} (n={row['n']})", va="center", fontsize=10)
     ax.set_xlabel("Pearson Correlation (log gross spend €M vs Points Per Game)")
-    ax.set_title("Money-Success Correlation Strength by League (2012–2025)")
+    ax.set_title("Spending–PPG Correlation Strength by League (2012–2025)")
     ax.set_xlim(0, max(d["r"] for d in league_stats) * 1.32)
     ax.grid(True, alpha=0.3, axis="x")
     plt.tight_layout()
