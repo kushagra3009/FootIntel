@@ -39,6 +39,7 @@ from api.hydrate import (
     _StrictHTTPSRedirectHandler,
     _stamp_path_for,
     ensure_hydrated,
+    ensure_hydrated_lazy,
     extract_verified_outputs_archive,
     main as hydrate_main,
     replace_directory_with_rollback,
@@ -735,6 +736,31 @@ class TestDeploymentScaffolding(unittest.TestCase):
                 gen.close()
         finally:
             existing_con.close()
+
+    def test_12_lazy_hydration_thread_safe_and_idempotent(self):
+        from api import hydrate
+        from api.hydrate import HydrationResult
+
+        call_count = {"n": 0}
+
+        def fake_hydrate():
+            import time
+            time.sleep(0.01)  # tiny pause to induce contention
+            call_count["n"] += 1
+            return HydrationResult(status="hydrated", db_hydrated=True, outputs_hydrated=True)
+
+        with patch.object(hydrate, "_HYDRATION_DONE", False):
+            with patch.object(hydrate, "ensure_hydrated", side_effect=fake_hydrate):
+                with ThreadPoolExecutor(max_workers=8) as pool:
+                    results = list(pool.map(lambda _: hydrate.ensure_hydrated_lazy(), range(16)))
+
+                self.assertEqual(len(results), 16)
+                self.assertEqual(call_count["n"], 1, "ensure_hydrated must be called exactly once")
+
+                # Subsequent call must be an immediate no-op
+                cached_res = hydrate.ensure_hydrated_lazy()
+                self.assertEqual(cached_res.status, "already_hydrated")
+                self.assertEqual(call_count["n"], 1)
 
 
 if __name__ == "__main__":

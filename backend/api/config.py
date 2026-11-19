@@ -68,12 +68,28 @@ def _parse_positive_int(env_name: str, default: int) -> int:
 def get_cors_origins() -> list[str]:
     """
     Return allowed CORS origins from env or local dev defaults.
-    In production runtime, FOOTINTEL_CORS_ORIGINS must be explicitly configured.
+
+    On Vercel, same-origin routing means API calls come from the deployment URL
+    itself. Auto-derive CORS origins from VERCEL_URL and VERCEL_PROJECT_PRODUCTION_URL
+    when FOOTINTEL_CORS_ORIGINS is not explicitly set. For non-Vercel production
+    (e.g., Render with separate frontend), FOOTINTEL_CORS_ORIGINS must be configured.
     """
     raw = os.getenv("FOOTINTEL_CORS_ORIGINS", "")
     origins = [o.strip() for o in raw.split(",") if o.strip()]
     if origins:
         return origins
+
+    # On Vercel, auto-derive from deployment and production URLs
+    vercel_origins: list[str] = []
+    for var in ("VERCEL_PROJECT_PRODUCTION_URL", "VERCEL_URL"):
+        host = os.getenv(var, "").strip()
+        if host:
+            origin = f"https://{host}" if not host.startswith("http") else host
+            if origin not in vercel_origins:
+                vercel_origins.append(origin)
+    if vercel_origins:
+        return vercel_origins
+
     if is_production_runtime():
         raise ValueError(
             "FOOTINTEL_CORS_ORIGINS must be set and non-empty when running in production mode."
@@ -118,14 +134,18 @@ def get_csv_max_concurrency() -> int:
 
 
 def is_production_runtime() -> bool:
-    """Return True when production/Render hydration safeguards must be enforced."""
+    """Return True when production/Render/Vercel hydration safeguards must be enforced."""
     env_mode = os.getenv("FOOTINTEL_ENV", "").strip().lower()
     require_flag = os.getenv("FOOTINTEL_REQUIRE_HYDRATION", "").strip().lower()
     render_flag = os.getenv("RENDER", "").strip().lower()
+    vercel_flag = os.getenv("VERCEL", "").strip().lower()
+    vercel_env = os.getenv("VERCEL_ENV", "").strip().lower()
     return (
         env_mode == "production"
         or require_flag in {"1", "true", "yes"}
         or render_flag in {"1", "true", "yes"}
+        or vercel_flag in {"1", "true", "yes"}
+        or vercel_env in {"production", "preview"}
     )
 
 

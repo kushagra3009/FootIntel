@@ -1,0 +1,17 @@
+.git
+.github
+backend/venv/
+backend/.venv/
+venv/
+.venv/
+node_modules/
+frontend/node_modules/
+data/raw/
+data/processed/*.duckdb
+data/processed/*.duckdb.wal
+dist/
+**/__pycache__/
+*.pyc
+*.pyo
+backend/tests/
+docs/

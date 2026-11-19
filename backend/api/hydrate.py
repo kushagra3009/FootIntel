@@ -22,6 +22,7 @@ import re
 import shutil
 import sys
 import tarfile
+import threading
 from urllib.parse import urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 import duckdb
@@ -615,6 +616,45 @@ def main() -> int:
     except Exception as exc:
         _log(f"FATAL unexpected hydration error: {exc}")
         return 1
+
+
+# ---------------------------------------------------------------------------
+# Thread-safe lazy hydration for serverless environments (Vercel).
+# ---------------------------------------------------------------------------
+_HYDRATION_LOCK = threading.Lock()
+_HYDRATION_DONE = False
+
+
+def ensure_hydrated_lazy() -> HydrationResult:
+    """
+    Thread-safe, idempotent lazy hydration for serverless cold starts.
+
+    Concurrent requests on a cold instance wait on the lock; only the first
+    thread executes hydration while subsequent threads skip upon acquiring
+    the lock. If an error occurs, it is raised to the caller while allowing
+    future requests to retry rather than permanently poisoning the container.
+    """
+    global _HYDRATION_DONE  # noqa: PLW0603
+
+    if _HYDRATION_DONE:
+        return HydrationResult(status="already_hydrated", db_hydrated=False, outputs_hydrated=False)
+
+    with _HYDRATION_LOCK:
+        if _HYDRATION_DONE:
+            return HydrationResult(status="already_hydrated", db_hydrated=False, outputs_hydrated=False)
+
+        try:
+            result = ensure_hydrated()
+            _log(f"Lazy hydration completed: {result.status}")
+            _HYDRATION_DONE = True
+            return result
+        except HydrationError as exc:
+            _log(f"Lazy hydration failed: {exc}")
+            raise
+        except Exception as exc:
+            err = HydrationError(f"Unexpected hydration failure: {exc}")
+            _log(f"Lazy hydration failed: {err}")
+            raise err from exc
 
 
 if __name__ == "__main__":
