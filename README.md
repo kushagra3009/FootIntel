@@ -2,13 +2,23 @@
 
 **An end-to-end football transfer economics, econometric research, and full-stack analytics platform built with DuckDB, SQL, Python, FastAPI, React 19, and TypeScript.**
 
+[![Live Website](https://img.shields.io/badge/Live_Demo-footintel.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://footintel.vercel.app)
+[![API Documentation](https://img.shields.io/badge/API_Docs-FastAPI_Swagger-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://footintel.vercel.app/docs)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kushagra3009/FootIntel)
+
 ![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.162.5-009688?logo=fastapi&logoColor=white)
 ![DuckDB](https://img.shields.io/badge/DuckDB-2.0.0-FFF000?logo=duckdb&logoColor=black)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)
-![Tests](https://img.shields.io/badge/Backend_Tests-22_Passing-22C55E)
+![Tests](https://img.shields.io/badge/Backend_Tests-34_Passing-22C55E)
+![Vercel Deployment](https://img.shields.io/badge/Deployment-Vercel_Live-22C55E?logo=vercel&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue)
+
+> 🚀 **Live Production Deployment:**
+> - **Live Website:** [footintel.vercel.app](https://footintel.vercel.app)
+> - **Interactive API Documentation:** [footintel.vercel.app/docs](https://footintel.vercel.app/docs)
+> - **Source Repository:** [github.com/kushagra3009/FootIntel](https://github.com/kushagra3009/FootIntel)
 
 FootIntel combines a 9-table **DuckDB + SQL** warehouse (`175,165` transfers, `88,958` matches, `50,149` players, `656,301` market valuations), a **SciPy/Pandas** econometric engine with club-clustered standard errors and fixed-effects checks, a **FastAPI** REST API (`15` routes), and a **10-module interactive React dashboard** spanning macro league research, player intelligence, cross-season player comparison, and transfer-spell value lookup.
 
@@ -83,6 +93,55 @@ All 10 views are accessible via the sidebar and deep-linked via URL hash in [`fr
 
 ---
 
+## Live Demo Guide
+
+Visitors, recruiters, and reviewers can explore all 10 analytical modules directly in the browser at **[footintel.vercel.app](https://footintel.vercel.app)** without local setup:
+
+1. **Executive Overview (`#overview`):**
+   - High-level research synthesis addressing *"Does money buy success?"*
+   - Real-time KPI counters (`€57.10B` gross spend, `175,165` transfers, `176` clubs, `88,958` matches).
+   - Core econometric findings with built-in non-causal interpretation warnings.
+
+2. **Transfer Market Trends (`#market`):**
+   - Multi-season Big Five spending timelines from 2012/13 to 2025/26.
+   - Interactive historical player cohort coverage audit showing active player survivorship (`16.7% → 100.0%`).
+
+3. **Domestic Performance (`#domestic`):**
+   - Filterable club-season table across Premier League, LaLiga, Serie A, Bundesliga, and Ligue 1.
+   - Scatter plots testing gross spending and net spending against league points and finishing positions.
+   - League-by-league OLS slopes demonstrating where spending yields diminishing returns.
+
+4. **Champions League Analysis (`#ucl`):**
+   - Stage progression analysis across 437 UCL club-seasons (Group/League stage to the Final).
+   - Paired domestic-vs-UCL Steiger $z$-tests showing spending explains more variance in European knockout formats than domestic leagues.
+
+5. **Transfer Value Analysis (`#value`):**
+   - Scatter plot of 15,829 paid transfers comparing arrival fees against crowdsourced market valuations.
+   - Empirical distribution showing clubs underpay relative to arrival valuation in 51.65% of transfers.
+   - Club valuation portfolios tracking aggregate estimated market value gains.
+
+6. **Statistical Insights (`#statistics`):**
+   - Complete econometric results battery (`6A`–`6F` and `07`).
+   - Comparison of naive standard errors vs. Liang-Zeger club-clustered sandwich standard errors.
+   - Club Fixed Effects and Two-Way (Club + Season) Fixed Effects reducing explained within-club variance below 0.5%.
+
+7. **Player Intelligence (`#players`):**
+   - Search across `50,149` players with position, nationality, appearance, and valuation filters.
+   - Complete profile view with bio data, season-by-season appearance splits, market valuation time-series curves, and career transfer timeline.
+
+8. **Player Comparison (`#player-compare`):**
+   - Side-by-side player evaluation supporting three modes: Same-Season, Cross-Season (evaluating a single player across different seasons), and Career aggregates.
+   - Normalized 6-axis radar charts and comparative performance bars.
+
+9. **Transfer Value Calculator (`#calculator`):**
+   - **Mode A (Database Lookup):** Search any real player transfer spell to evaluate arrival valuation, spell-bounded peak/latest estimated valuation, and multiple metrics.
+   - **Mode B (Manual Estimator):** Input custom fee, arrival valuation, and peak valuation to calculate valuation ratios and multiples.
+
+10. **Methodology & Limits (`#methodology`):**
+    - Transparent documentation of season harmonization rules (`[S-07-01, (S+1)-06-30]`), crowdsourced valuation limitations, fixed-effects interpretation, and non-causal guardrails.
+
+---
+
 ## Architecture & Data Pipeline
 
 ```mermaid
@@ -95,6 +154,52 @@ flowchart LR
     Artifacts -->|"Dynamic Query Layer"| API
     API -->|"JSON over HTTP"| UI["React 19 + TypeScript UI<br/>10 Modules and Recharts"]
 ```
+
+---
+
+## Production Deployment & Cloud Architecture
+
+FootIntel is deployed as a unified full-stack application on **Vercel** with ₹0/month cloud hosting overhead, zero paid database subscriptions, and zero mock data:
+
+```mermaid
+flowchart TD
+    subgraph Vercel["Vercel Cloud Platform (footintel.vercel.app)"]
+        CDN["Vercel Global Edge CDN<br/>Static Assets & React 19 SPA"]
+        API["FastAPI Serverless Function<br/>Python 3.13 / ASGI (api/index.py)"]
+        TMP["Ephemeral /tmp Storage<br/>DuckDB Database (196 MB) + 10 CSV Outputs"]
+    end
+
+    subgraph GitHub["GitHub Releases (v1.0.0)"]
+        DBAsset["footintel.duckdb.gz<br/>(155 MB compressed, SHA-256 verified)"]
+        OutputsAsset["analysis_outputs.tar.gz<br/>(1.2 MB archive, SHA-256 verified)"]
+    end
+
+    Client["Browser Client"] -->|"/* (Static Assets)"| CDN
+    Client -->|"/api/* and /health"| API
+    CDN -.->|"Same-origin API requests<br/>(VITE_API_BASE_URL=/)"| API
+    API -->|"Cold start lazy hydration<br/>(Thread-safe download & verify)"| GitHub
+    GitHub -->|"Decompressed into"| TMP
+    API -->|"Read-only SQL queries<br/>(192 MB mem limit, 1 thread)"| TMP
+```
+
+### Deployment Status
+
+| Component | Status | Details |
+|---|---|---|
+| **Web Application** | 🟢 **Live** | [footintel.vercel.app](https://footintel.vercel.app) — React 19 + TypeScript SPA on Vercel CDN |
+| **API Documentation** | 🟢 **Live** | [footintel.vercel.app/docs](https://footintel.vercel.app/docs) — Interactive FastAPI Swagger UI |
+| **Serverless API** | 🟢 **Live** | FastAPI ASGI app on Vercel Serverless Functions (`api/index.py`) |
+| **Database Connectivity** | 🟢 **Verified** | In-process DuckDB OLAP (`196 MB`) hydrated to ephemeral container storage (`/tmp`) |
+| **Release Artifacts** | 🟢 **Verified** | Immutable GitHub Release `v1.0.0` assets with SHA-256 checksum verification |
+| **Dashboard Modules** | 🟢 **Tested** | All 10 interactive research, player intelligence, and calculator views fully operational |
+
+### Architectural Components
+
+- **Frontend on Vercel:** Built with React 19, TypeScript 5.8, and Vite 6, bundled into static assets and served globally via Vercel's Edge CDN. Communicates with the backend using same-origin API rewrites (`VITE_API_BASE_URL="/"`) defined in [`vercel.json`](vercel.json).
+- **Backend as Serverless Functions:** Built with FastAPI, Pydantic v2, and Uvicorn. Deployed as a Python 3.13 ASGI function entrypoint ([`api/index.py`](api/index.py)) with slim runtime dependencies ([`api/requirements.txt`](api/requirements.txt)) and a 300-second execution duration ceiling.
+- **Embedded DuckDB OLAP:** Rather than running an expensive hosted database server, the production backend queries an embedded DuckDB database (`196 MB` uncompressed) stored locally in the serverless container's ephemeral `/tmp` scratch space (`/tmp/footintel/data/processed/footintel.duckdb`).
+- **Cold-Start Lazy Hydration:** On cold start, the backend lazily downloads the pre-built, verified database and analytical outputs from public [GitHub Releases v1.0.0](https://github.com/kushagra3009/FootIntel/releases/tag/v1.0.0). Concurrency is guarded by a thread-safe double-checked lock ([`backend/api/hydrate.py`](backend/api/hydrate.py)), enforcing chunked SHA-256 verification and hardened archive extraction before serving queries.
+- **Resource Constraints:** DuckDB connections operate in read-only mode with strict memory caps (`192MB` for database queries, `64MB` for transient CSV queries) and concurrency semaphores, easily fitting within Vercel's 2 GB serverless memory ceiling.
 
 ---
 
@@ -114,13 +219,22 @@ FootIntel/
 ├── .env.example                      # Backend env var template (CORS, DB/output overrides)
 ├── .gitattributes                    # Line-ending normalization
 ├── .gitignore                        # Excludes data/, venv/, node_modules/, dist/, .env*
+├── .python-version                   # Python runtime pin (3.13) for Vercel
+├── .vercelignore                     # Excludes local venvs, raw data, and test caches
 ├── LICENSE                           # MIT License
 ├── README.md
+├── render.yaml                       # Alternative Render Free service blueprint
+├── vercel.json                       # Vercel deployment spec (SPA build + serverless API rewrites)
+├── api/                              # Vercel serverless entrypoint
+│   ├── index.py                      # ASGI handler with cold-start lazy hydration
+│   └── requirements.txt              # Slim production runtime dependencies
 ├── docs/
 │   ├── methodology.md                # Extended statistical methodology, rules & caveats
 │   └── images/                       # Curated screenshots and research charts
 ├── backend/
-│   ├── requirements.txt              # Pinned/reproducible Python dependencies
+│   ├── .python-version               # Pinned Python version (3.13)
+│   ├── requirements.txt              # Full dev/analysis Python dependencies
+│   ├── requirements-api.txt          # Slim runtime dependencies for cloud hosting
 │   ├── ingest/
 │   │   ├── download.py               # Downloads 9 gzipped CSVs from R2 mirror
 │   │   └── load_duckdb.py            # Builds DuckDB tables + 4 SQL views
@@ -134,6 +248,7 @@ FootIntel/
 │   ├── api/
 │   │   ├── config.py                 # Env-driven CORS, DB & output resolution
 │   │   ├── dependencies.py           # DuckDB lifecycle & error dependencies
+│   │   ├── hydrate.py                # Pre-start & lazy artifact hydrator with SHA-256 checks
 │   │   ├── main.py                   # FastAPI app, middleware, 500 handler, 15 routes
 │   │   ├── schemas.py                # Pydantic v2 response contracts
 │   │   ├── routes/                   # health, overview, trends, domestic, ucl, market_value, statistics, players
@@ -141,7 +256,8 @@ FootIntel/
 │   └── tests/
 │       ├── test_phase2_analysis.py   # 8 econometric & data coverage tests
 │       ├── test_phase3_api.py        # 8 REST API integration & contract tests
-│       └── test_phase4_1_players.py  # 6 player boundary & spell tests
+│       ├── test_phase4_1_players.py  # 6 player boundary & spell tests
+│       └── test_deployment_scaffolding.py # 12 deployment & lazy hydration tests
 └── frontend/
     ├── .env.example                  # Frontend VITE_API_BASE_URL build template
     ├── index.html                    # CSP referrer policy & Google Fonts setup
@@ -266,7 +382,7 @@ Full mathematical definitions, survivorship bias tables, player season-boundary 
 ### Automated Verification
 
 ```powershell
-# Backend test suite (22 unit & integration tests)
+# Backend test suite (34 unit & integration tests)
 cd backend
 .\venv\Scripts\python -m unittest discover -s tests -v
 
@@ -279,6 +395,7 @@ npm run build
 - [`test_phase2_analysis.py`](backend/tests/test_phase2_analysis.py) (`8` tests): Statistical calculations, clustered SEs, coverage audit, spell boundary invariants.
 - [`test_phase3_api.py`](backend/tests/test_phase3_api.py) (`8` tests): REST endpoints, Pydantic validation, CORS, sanitized HTTP 500 handling.
 - [`test_phase4_1_players.py`](backend/tests/test_phase4_1_players.py) (`6` tests): Player search, season-boundary `[S-07-01, (S+1)-06-30]` rules, cross-season comparison, transfer-spell calculator.
+- [`test_deployment_scaffolding.py`](backend/tests/test_deployment_scaffolding.py) (`12` tests): Pre-start & lazy serverless hydration, SHA-256 validation, bounded concurrency semaphores, hardened archive extraction, directory rollback, and DuckDB session limits.
 - *Frontend testing note:* TypeScript type safety (`tsc --noEmit`) and Vite production bundling are verified; there is no dedicated frontend unit/E2E suite in this release.
 
 ---
